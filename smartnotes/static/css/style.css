@@ -1,0 +1,9 @@
+ul.errorlist {
+  display: none;
+}
+
+.signup-form {
+  text-align: left;
+  margin: 0 auto;
+  width: 800px;
+}
