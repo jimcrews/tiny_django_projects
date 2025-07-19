@@ -30,6 +30,8 @@ rm -rf src/django_compose
 
 # Add Django
 poetry add django
+poetry add celery
+poetry add redis
 
 # Create the main Django project
 poetry run django-admin startproject config src
@@ -38,6 +40,7 @@ poetry run django-admin startproject config src
 cd src
 # Create Django apps inside src/
 poetry run python manage.py startapp todo
+poetry run python manage.py startapp emailer # requires celery and redis
 cd ..
 ```
 
