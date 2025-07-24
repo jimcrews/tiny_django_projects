@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "backend"
+version = "0.1.0"
+description = ""
+authors = ["Jim Crews <crews.jim@gmail.com>"]
+readme = "README.md"
+packages = [{ include = "*", from = "src" }]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+django = "^5.2.4"
+graphene-django = "^3.2.3"
+django-cors-headers = "^4.7.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
