@@ -1,9 +1,17 @@
 # Tiny Django Projects
 
+- [Django and GraphQL](./react_django)
+- [Django and Docker](./django_compose) (setup steps below)
+
+<br />
+<br />
+
+<p align="center">─────────────────────────── ❖ ────────────────────────────</p>
+
+<br />
+<br />
 
 Build and run Django apps using Poetry, and use Docker Compose for local development.
-
----
 
 ## Install Poetry
 
