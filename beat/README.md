@@ -101,6 +101,10 @@ Interval Schedule: every 10 seconds
 # Redis Server (Celery Broker)
 docker run -d -p 6379:6379 --name redis redis
 
+# Redis Server (Message Queue)
+docker run -d --name redis-test -p 6399:6379 redis:7-alpine
+# or docker start redis-test
+
 # Run Django App (optional)
 poetry run python src/manage.py runserver
 
@@ -113,25 +117,30 @@ poetry run celery -A config beat -l info -S django
 
 ---
 
-# Message Queue App
+## Run Test Script
 
-Create Redis server for receiving messages
-
+Add messages manually
 ``` shell
-docker run -d --name redis-test -p 6399:6379 redis:7-alpine
-# or docker start redis-test
-
 # connect to redis
 docker exec -it redis-test redis-cli
 
 # Add messages
 
 XADD echo_responses * json '{"message": "Testing", "something": "value 1", "another": "value 2"}'
-
 ```
 
-## Run Test Script
+Or run the test scripts
 
 ``` shell
 poetry run python verify_ingestion.py
+poetry run python high_volume_test.py
+```
+
+
+## Destroy and Clean
+
+``` shell
+rm src/db.sqlite3
+poetry run python src/manage.py migrate
+poetry run python src/manage.py createsuperuser
 ```
