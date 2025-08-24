@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "beat"
+version = "0.1.0"
+description = ""
+authors = ["Jim Crews <crews.jim@gmail.com>"]
+readme = "README.md"
+packages = [{include = "*", from = "src"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+django = "^5.2.5"
+celery = "^5.5.3"
+django-celery-beat = "^2.8.1"
+redis = "^6.4.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
