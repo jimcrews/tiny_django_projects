@@ -98,12 +98,12 @@ Interval Schedule: every 10 seconds
 ## Run App with Celery:
 
 ``` shell
+# docker start redis and redis-test
 # Redis Server (Celery Broker)
 docker run -d -p 6379:6379 --name redis redis
 
 # Redis Server (Message Queue)
 docker run -d --name redis-test -p 6399:6379 redis:7-alpine
-# or docker start redis-test
 
 # Run Django App (optional)
 poetry run python src/manage.py runserver

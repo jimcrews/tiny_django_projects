@@ -47,13 +47,30 @@ def poll_echo_responses():
                 return
 
         try:
+            # First, claim stale pending messages (e.g., after restarts) so they don't get stuck forever.
+            claimed_data = []
+            if hasattr(redis_client, "xautoclaim"):
+                next_id = "00"
+                while True:
+                    next_id, claimed, _ = redis_client.xautoclaim(
+                        redis_stream,
+                        consumer_group_name,
+                        consumer_name,
+                        min_idle_time=60_000,  # 60s
+                        start_id=next_id,
+                        count=100,
+                    )
+                    if not claimed:
+                        break
+                    claimed_data.append((redis_stream, claimed))
+
             pending_data = redis_client.xreadgroup(
                 groupname=consumer_group_name,
                 consumername=consumer_name,
                 streams={redis_stream: '0'},  # pending messages
                 count=100
             )
-            
+
             new_data = redis_client.xreadgroup(
                 groupname=consumer_group_name,
                 consumername=consumer_name,
@@ -61,24 +78,51 @@ def poll_echo_responses():
                 count=100
             )
             
-            # Combine pending and new messages
-            data = []
-            if pending_data:
-                data.extend(pending_data)
-            if new_data:
-                data.extend(new_data)
-                
-            if not data:
+            # Check if we have any messages to process
+            if not claimed_data and not pending_data and not new_data:
                 return
                 
         except Exception as redis_error:
-            print(f"Failed to read from Echo Response Redis stream: {str(redis_error)}")
+            print(f"Failed to read from Plan Management Response Redis stream: {str(redis_error)}")
             return
         
         # Process all available messages
         successfully_processed_ids = []
         
-        for stream, messages in data:
+        # Process claimed messages first (if any)
+        for stream, claimed_messages in claimed_data:
+            for message in claimed_messages:
+                message_id = message[0]
+                message_data = message[1]
+                
+                try:
+                    # Process the message data
+                    print(f"Echo: Processing message with ID: {message_id}")
+                    print(f"Echo: Message data: {message_data}")
+                    
+                    # Save to database
+                    try:
+                        raw_json = message_data.get("json", "{}")
+                        parsed_json = json.loads(raw_json)
+
+                        Message.objects.create(
+                            message=parsed_json.get("message", ""),
+                            json_body=parsed_json
+                        )
+
+                    except Exception as process_error:
+                        print(f"Failed to process message {message_id}: {str(process_error)}")
+                    
+                    # Mark message as successfully processed
+                    successfully_processed_ids.append(message_id)
+                    
+                except Exception as process_error:
+                    print(f"Failed to process message {message_id}: {str(process_error)}", exc_info=True)
+                    # Continue processing other messages even if one fails
+                    continue
+        
+        # Process pending and new messages
+        for stream, messages in pending_data + new_data:
             for message in messages:
                 message_id = message[0]
                 message_data = message[1]
