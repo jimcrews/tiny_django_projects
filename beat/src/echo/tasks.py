@@ -50,8 +50,9 @@ def poll_echo_responses():
             # First, claim stale pending messages (e.g., after restarts) so they don't get stuck forever.
             claimed_data = []
             if hasattr(redis_client, "xautoclaim"):
-                next_id = "00"
+                next_id = "0-0"
                 while True:
+                    # latest Redis version returns 3 values.
                     next_id, claimed, _ = redis_client.xautoclaim(
                         redis_stream,
                         consumer_group_name,
@@ -88,6 +89,7 @@ def poll_echo_responses():
         
         # Process all available messages
         successfully_processed_ids = []
+        processed_message_ids = set()  # Track processed message IDs to avoid duplicates
         
         # Process claimed messages first (if any)
         for stream, claimed_messages in claimed_data:
@@ -95,37 +97,9 @@ def poll_echo_responses():
                 message_id = message[0]
                 message_data = message[1]
                 
-                try:
-                    # Process the message data
-                    print(f"Echo: Processing message with ID: {message_id}")
-                    print(f"Echo: Message data: {message_data}")
-                    
-                    # Save to database
-                    try:
-                        raw_json = message_data.get("json", "{}")
-                        parsed_json = json.loads(raw_json)
-
-                        Message.objects.create(
-                            message=parsed_json.get("message", ""),
-                            json_body=parsed_json
-                        )
-
-                    except Exception as process_error:
-                        print(f"Failed to process message {message_id}: {str(process_error)}")
-                    
-                    # Mark message as successfully processed
-                    successfully_processed_ids.append(message_id)
-                    
-                except Exception as process_error:
-                    print(f"Failed to process message {message_id}: {str(process_error)}", exc_info=True)
-                    # Continue processing other messages even if one fails
+                # Skip if already processed
+                if message_id in processed_message_ids:
                     continue
-        
-        # Process pending and new messages
-        for stream, messages in pending_data + new_data:
-            for message in messages:
-                message_id = message[0]
-                message_data = message[1]
                 
                 try:
                     # Process the message data
@@ -133,20 +107,52 @@ def poll_echo_responses():
                     print(f"Echo: Message data: {message_data}")
                     
                     # Save to database
-                    try:
-                        raw_json = message_data.get("json", "{}")
-                        parsed_json = json.loads(raw_json)
+                  
+                    raw_json = message_data.get("json", "{}")
+                    parsed_json = json.loads(raw_json)
 
-                        Message.objects.create(
-                            message=parsed_json.get("message", ""),
-                            json_body=parsed_json
-                        )
-
-                    except Exception as process_error:
-                        print(f"Failed to process message {message_id}: {str(process_error)}")
+                    Message.objects.create(
+                        message=parsed_json.get("message", ""),
+                        json_body=parsed_json
+                    )
                     
                     # Mark message as successfully processed
                     successfully_processed_ids.append(message_id)
+                    processed_message_ids.add(message_id)
+                    
+                except Exception as process_error:
+                    print(f"Failed to process message {message_id}: {str(process_error)}", exc_info=True)
+                    # Continue processing other messages even if one fails
+                    continue
+        
+        # Process pending and new messages
+        for stream, messages in (pending_data or []) + (new_data or []):
+            for message in messages:
+                message_id = message[0]
+                message_data = message[1]
+                
+                # Skip if already processed
+                if message_id in processed_message_ids:
+                    continue
+                
+                try:
+                    # Process the message data
+                    print(f"Echo: Processing message with ID: {message_id}")
+                    print(f"Echo: Message data: {message_data}")
+                    
+                    # Save to database
+
+                    raw_json = message_data.get("json", "{}")
+                    parsed_json = json.loads(raw_json)
+
+                    Message.objects.create(
+                        message=parsed_json.get("message", ""),
+                        json_body=parsed_json
+                    )
+                    
+                    # Mark message as successfully processed
+                    successfully_processed_ids.append(message_id)
+                    processed_message_ids.add(message_id)
                     
                 except Exception as process_error:
                     print(f"Failed to process message {message_id}: {str(process_error)}", exc_info=True)
